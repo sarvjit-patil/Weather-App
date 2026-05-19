@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Weather Prediction API</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+        /* ── Reset & Base ──────────────────────────────────── */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #e0e0e0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow-x: hidden;
+        }
+
+        /* ── Animated background particles ─────────────────── */
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.18;
+            z-index: 0;
+            animation: float 12s ease-in-out infinite alternate;
+        }
+        .bg-orb.one   { width: 420px; height: 420px; background: #6c63ff; top: -80px;  left: -100px; }
+        .bg-orb.two   { width: 350px; height: 350px; background: #00bcd4; bottom: -60px; right: -80px; animation-delay: -4s; }
+        .bg-orb.three { width: 280px; height: 280px; background: #ff6f61; top: 40%;    left: 60%;    animation-delay: -8s; }
+
+        @keyframes float {
+            0%   { transform: translateY(0) scale(1); }
+            100% { transform: translateY(-40px) scale(1.08); }
+        }
+
+        /* ── Header ────────────────────────────────────────── */
+        header {
+            position: relative; z-index: 1;
+            text-align: center;
+            padding: 48px 20px 16px;
+        }
+        header .icon {
+            font-size: 52px;
+            margin-bottom: 8px;
+            animation: bounce 2.4s ease-in-out infinite;
+        }
+        @keyframes bounce {
+            0%, 100% { transform: translateY(0); }
+            50%      { transform: translateY(-10px); }
+        }
+        header h1 {
+            font-size: 2rem;
+            font-weight: 800;
+            background: linear-gradient(90deg, #6c63ff, #00bcd4);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        header p {
+            margin-top: 6px;
+            font-size: 0.95rem;
+            color: #9e9e9e;
+        }
+
+        /* ── Card container ────────────────────────────────── */
+        .card {
+            position: relative; z-index: 1;
+            width: 100%;
+            max-width: 680px;
+            margin: 24px 16px 40px;
+            background: rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(18px);
+            -webkit-backdrop-filter: blur(18px);
+            border: 1px solid rgba(255, 255, 255, 0.10);
+            border-radius: 20px;
+            padding: 36px 40px 40px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+            transition: transform 0.3s ease;
+        }
+        .card:hover { transform: translateY(-4px); }
+
+        /* ── Form ──────────────────────────────────────────── */
+        .form-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .form-group.full-width { grid-column: 1 / -1; }
+
+        label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.6px;
+            color: #aaa;
+        }
+        label .unit {
+            font-weight: 400;
+            color: #777;
+            text-transform: none;
+        }
+
+        input[type="number"] {
+            background: rgba(255, 255, 255, 0.07);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 10px;
+            padding: 12px 14px;
+            font-size: 1rem;
+            font-family: 'Inter', sans-serif;
+            color: #f0f0f0;
+            outline: none;
+            transition: border-color 0.25s, box-shadow 0.25s;
+        }
+        input[type="number"]:focus {
+            border-color: #6c63ff;
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.25);
+        }
+        input[type="number"]::placeholder { color: #666; }
+
+        /* hide number arrows */
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none; margin: 0;
+        }
+        input[type="number"] { -moz-appearance: textfield; }
+
+        /* ── Button ────────────────────────────────────────── */
+        .btn-predict {
+            grid-column: 1 / -1;
+            margin-top: 6px;
+            padding: 14px;
+            font-size: 1rem;
+            font-weight: 700;
+            font-family: 'Inter', sans-serif;
+            letter-spacing: 0.5px;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            background: linear-gradient(135deg, #6c63ff, #3f51b5);
+            box-shadow: 0 4px 16px rgba(108, 99, 255, 0.35);
+            transition: transform 0.2s, box-shadow 0.2s, opacity 0.2s;
+        }
+        .btn-predict:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(108, 99, 255, 0.50);
+        }
+        .btn-predict:active { transform: scale(0.98); }
+        .btn-predict:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* ── Result panel ──────────────────────────────────── */
+        .result-panel {
+            margin-top: 28px;
+            padding: 24px;
+            border-radius: 14px;
+            text-align: center;
+            opacity: 0;
+            transform: translateY(12px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+            display: none;
+        }
+        .result-panel.visible {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+        .result-panel .weather-icon { font-size: 56px; margin-bottom: 8px; }
+        .result-panel .weather-label {
+            font-size: 1.5rem;
+            font-weight: 800;
+        }
+        .result-panel .weather-sub {
+            font-size: 0.85rem;
+            color: #aaa;
+            margin-top: 4px;
+        }
+
+        /* Conditional result backgrounds */
+        .result-panel.sunny  { background: linear-gradient(135deg, rgba(255,193,7,0.15), rgba(255,152,0,0.10)); }
+        .result-panel.sunny  .weather-label { color: #ffc107; }
+        .result-panel.cloudy { background: linear-gradient(135deg, rgba(158,158,158,0.15), rgba(96,125,139,0.10)); }
+        .result-panel.cloudy .weather-label { color: #b0bec5; }
+        .result-panel.rainy  { background: linear-gradient(135deg, rgba(33,150,243,0.15), rgba(3,169,244,0.10)); }
+        .result-panel.rainy  .weather-label { color: #42a5f5; }
+        .result-panel.stormy { background: linear-gradient(135deg, rgba(244,67,54,0.15), rgba(183,28,28,0.10)); }
+        .result-panel.stormy .weather-label { color: #ef5350; }
+
+        /* ── Error banner ──────────────────────────────────── */
+        .error-banner {
+            margin-top: 18px;
+            padding: 12px 16px;
+            border-radius: 10px;
+            background: rgba(244, 67, 54, 0.12);
+            border: 1px solid rgba(244, 67, 54, 0.25);
+            color: #ef9a9a;
+            font-size: 0.85rem;
+            display: none;
+        }
+        .error-banner.visible { display: block; }
+
+        /* ── Footer ────────────────────────────────────────── */
+        footer {
+            position: relative; z-index: 1;
+            text-align: center;
+            padding: 0 20px 32px;
+            font-size: 0.78rem;
+            color: #555;
+        }
+        footer a {
+            color: #6c63ff;
+            text-decoration: none;
+        }
+
+        /* ── Responsive ────────────────────────────────────── */
+        @media (max-width: 480px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .card { padding: 28px 20px 32px; }
+            header h1 { font-size: 1.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Animated background orbs -->
+    <div class="bg-orb one"></div>
+    <div class="bg-orb two"></div>
+    <div class="bg-orb three"></div>
+
+    <!-- Header -->
+    <header>
+        <div class="icon">🌤️</div>
+        <h1>Weather Prediction API</h1>
+        <p>Enter weather parameters to predict the condition</p>
+    </header>
+
+    <!-- Main card -->
+    <div class="card" id="main-card">
+        <form id="predict-form" class="form-grid" autocomplete="off">
+
+            <div class="form-group">
+                <label for="temperature">Temperature <span class="unit">(°C)</span></label>
+                <input type="number" id="temperature" placeholder="e.g. 30" step="0.1" required />
+            </div>
+
+            <div class="form-group">
+                <label for="humidity">Humidity <span class="unit">(%)</span></label>
+                <input type="number" id="humidity" placeholder="e.g. 70" step="0.1" required />
+            </div>
+
+            <div class="form-group">
+                <label for="wind_speed">Wind Speed <span class="unit">(km/h)</span></label>
+                <input type="number" id="wind_speed" placeholder="e.g. 15" step="0.1" required />
+            </div>
+
+            <div class="form-group">
+                <label for="pressure">Pressure <span class="unit">(hPa)</span></label>
+                <input type="number" id="pressure" placeholder="e.g. 1013" step="0.1" required />
+            </div>
+
+            <div class="form-group full-width">
+                <label for="cloud_cover">Cloud Cover <span class="unit">(%)</span></label>
+                <input type="number" id="cloud_cover" placeholder="e.g. 40" step="0.1" required />
+            </div>
+
+            <button type="submit" class="btn-predict" id="btn-predict">
+                🔍&ensp;Predict Weather
+            </button>
+        </form>
+
+        <!-- Error -->
+        <div class="error-banner" id="error-banner"></div>
+
+        <!-- Result -->
+        <div class="result-panel" id="result-panel">
+            <div class="weather-icon" id="result-icon"></div>
+            <div class="weather-label" id="result-label"></div>
+            <div class="weather-sub" id="result-sub"></div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        Built with <strong>FastAPI</strong> · <strong>scikit-learn</strong> · <strong>MLFlow</strong> ·
+        <strong>Docker</strong><br/>
+        ISE Practical Submission &nbsp;|&nbsp;
+        <a href="/docs" target="_blank">API Docs ↗</a>
+    </footer>
+
+    <script>
+        // ── Weather metadata ──────────────────────────────
+        const weatherMeta = {
+            Sunny:  { icon: '☀️', className: 'sunny',  sub: 'Clear skies ahead — enjoy the sunshine!' },
+            Cloudy: { icon: '☁️', className: 'cloudy', sub: 'Overcast conditions — keep an umbrella handy.' },
+            Rainy:  { icon: '🌧️', className: 'rainy',  sub: 'Rain expected — don\'t forget your umbrella!' },
+            Stormy: { icon: '⛈️', className: 'stormy', sub: 'Storm alert — stay indoors and stay safe!' },
+        };
+
+        const form        = document.getElementById('predict-form');
+        const btnPredict  = document.getElementById('btn-predict');
+        const resultPanel = document.getElementById('result-panel');
+        const resultIcon  = document.getElementById('result-icon');
+        const resultLabel = document.getElementById('result-label');
+        const resultSub   = document.getElementById('result-sub');
+        const errorBanner = document.getElementById('error-banner');
+
+        form.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            hideError();
+            hideResult();
+
+            const payload = {
+                temperature:  parseFloat(document.getElementById('temperature').value),
+                humidity:     parseFloat(document.getElementById('humidity').value),
+                wind_speed:   parseFloat(document.getElementById('wind_speed').value),
+                pressure:     parseFloat(document.getElementById('pressure').value),
+                cloud_cover:  parseFloat(document.getElementById('cloud_cover').value),
+            };
+
+            // Basic validation
+            for (const [key, val] of Object.entries(payload)) {
+                if (isNaN(val)) { showError(`Please enter a valid number for ${key}.`); return; }
+            }
+
+            btnPredict.disabled = true;
+            btnPredict.textContent = '⏳  Predicting…';
+
+            try {
+                const res = await fetch('/predict', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload),
+                });
+
+                if (!res.ok) {
+                    const err = await res.json().catch(() => null);
+                    throw new Error(err?.detail || `Server error (${res.status})`);
+                }
+
+                const data = await res.json();
+                showResult(data.predicted_weather);
+            } catch (err) {
+                showError(err.message || 'Failed to reach the server. Is the API running?');
+            } finally {
+                btnPredict.disabled = false;
+                btnPredict.innerHTML = '🔍&ensp;Predict Weather';
+            }
+        });
+
+        function showResult(weather) {
+            const meta = weatherMeta[weather] || { icon: '🌡️', className: '', sub: '' };
+
+            // Remove old weather classes
+            resultPanel.classList.remove('sunny', 'cloudy', 'rainy', 'stormy');
+            resultPanel.classList.add(meta.className, 'visible');
+
+            resultIcon.textContent  = meta.icon;
+            resultLabel.textContent = weather;
+            resultSub.textContent   = meta.sub;
+        }
+
+        function hideResult() {
+            resultPanel.classList.remove('visible');
+            // Let the animation finish before hiding
+            setTimeout(() => {
+                if (!resultPanel.classList.contains('visible')) {
+                    resultPanel.style.display = 'none';
+                }
+            }, 400);
+        }
+
+        function showError(msg) {
+            errorBanner.textContent = '⚠️ ' + msg;
+            errorBanner.classList.add('visible');
+        }
+
+        function hideError() {
+            errorBanner.classList.remove('visible');
+        }
+    </script>
+</body>
+</html>
